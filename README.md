@@ -1,3 +1,5 @@
+#Unity Multiplayer Lobby System Template
+
 A simple multiplayer lobby system that accomodates multiple different backend multiplayer services to be used and swapped.
 
 Currently support Unity Multiplayer Services and Steamworks via Facepunch. The service can easily be swapped by a dropdown in the MultiplayerFacade gameobject.
@@ -6,7 +8,6 @@ Whereby Unity Multiplayer System uses Authentication, Unity Relay, and Unity Lob
 Whereby Steam service uses Steam Auth, Steam Relay and Steam Lobby System
 
 For Steam, you need to use a different device (with different Steam account) to test it out as 1 instance can only be used on 1 PC as Steam uses your steam client to connect.
------
 
 You can download/clone the repository OR use the export package to import it into your project. Then follow the instruction below:
 
