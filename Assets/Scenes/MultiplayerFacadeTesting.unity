@@ -1021,7 +1021,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fa8690a6f5d33cc47aa15cad00fb659e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _serviceType: 3
+  _serviceType: 0
   _networkConfig: {fileID: 11400000, guid: 3523eb6116391f242b089fc82b7210de, type: 2}
 --- !u!4 &191207678
 Transform:
@@ -4736,6 +4736,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3d0f71c8397817943992c0ac721a8065, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
   _relayID: {fileID: 1608595523}
   _btnRelayIDCopy: {fileID: 1822344592}
   _relayCodeInput: {fileID: 944030768}
@@ -4743,6 +4744,7 @@ MonoBehaviour:
   _btnLobbyIDCopy: {fileID: 90801244}
   _lobbyIDInput: {fileID: 1896723764}
   _serviceType: {fileID: 1467429965}
+  cubePrefab: {fileID: 0}
 --- !u!1 &1608595521
 GameObject:
   m_ObjectHideFlags: 0

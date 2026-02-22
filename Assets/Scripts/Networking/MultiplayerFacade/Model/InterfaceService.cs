@@ -1,12 +1,8 @@
-using Steamworks.Data;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Unity.Services.Lobbies.Models;
-using UnityEditor;
-using UnityEngine;
 
-namespace Kudoshi.Networking
+namespace Dreamonaut.Networking
 {
     // This file contains the interface for all the services and the info about them
     // There is:
@@ -24,13 +20,15 @@ namespace Kudoshi.Networking
     /// </summary>
     public interface IServiceController
     {
-        public void Init(out IServiceRelay serviceRelay, out IServiceLobby serviceLobby);
+        public void Init(Action<IServiceRelay, IServiceLobby> completeInitAction);
         public void Shutdown();
 
         // Check whether service has already started 
         public bool IsServiceRunning { get; }
         // Get ownself player ID
         public string PlayerID { get; }
+
+        public string PlayerName { get; }
 
     }
 
@@ -45,10 +43,16 @@ namespace Kudoshi.Networking
         public void Init();
         public void Shutdown();
 
+        public void Reset();
+
+        public bool IsInSession { get; }
+
         // Start the relay. Should be called by host
         public Task<string> HostRelay();
         // Join the relay. Should be called by client 
         public Task<bool> JoinRelay(string joinCode);
+
+        public Task<(bool success, bool shouldTryAgain)> ReconnectRelay();
     }
 
     /// <summary>
@@ -65,6 +69,7 @@ namespace Kudoshi.Networking
     {
         public void Init();
         public void Shutdown();
+        public void Reset();
 
 
         public CustomLobby Lobby { get; }
@@ -143,8 +148,8 @@ namespace Kudoshi.Networking
         /// 
         /// Refer to the KEYs in the LobbyPlayer for the list of data 
         /// </summary>
-        /// <param name="playerID">Player ID</param>
-        /// <param name="dataKey">Player data key</param>
+        /// <param name="playerID">Character ID</param>
+        /// <param name="dataKey">Character data key</param>
         /// <returns></returns>
         public Task<string> GetPlayerData(string playerID, string dataKey);
 
@@ -152,14 +157,14 @@ namespace Kudoshi.Networking
         /// Update player data based on player ID
         /// </summary>
         /// <param name="lobbyID">Lobby ID</param>
-        /// <param name="playerID">Player ID</param>
+        /// <param name="playerID">Character ID</param>
         /// <param name="data">Dictionary of <dataKey, dataValue></param>
         /// <returns>Update success</returns>
         public Task<bool> UpdatePlayerData(string lobbyID, string playerID, Dictionary<string, string> data);
 
         /// <summary>
         /// Used exclusively only for Steam
-        /// Triggers Steam Player invite popup and also opens lobby up to be joined by steam friends
+        /// Triggers Steam Character invite popup and also opens lobby up to be joined by steam friends
         /// 
         /// Currently Unity does not implement this
         /// </summary>
@@ -198,7 +203,7 @@ namespace Kudoshi.Networking
         //      Any change in lobby metadata, e.g. name, custom data, or settings.
         public event Action<CustomLobby> OnLobbyUpdate;
 
-        //      Player-specific key-value updates — e.g. ready states, character choice, etc.
+        //      Character-specific key-value updates — e.g. ready states, character choice, etc.
         public event Action<CustomLobby, LobbyPlayer> OnPlayerDataChange;
 
         //      Steam and Unity fire when a user enters a lobby.For UGS host, the lobby creation result also means you "entered".

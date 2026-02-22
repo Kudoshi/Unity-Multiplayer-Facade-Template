@@ -1,18 +1,17 @@
 using Unity.Netcode;
-using UnityEngine;
-using Netcode;
 using Facepunch;
 using Steamworks;
 using System.Threading.Tasks;
 using System;
 
-namespace Kudoshi.Networking
+namespace Dreamonaut.Networking
 {
     public class SteamRelayService : IServiceRelay
     {
         private FacepunchTransport _transport;
-
-        
+        private string _joinCode;
+        private bool _isInSession = false;
+        public bool IsInSession => _isInSession;
 
         public void Init()
         {
@@ -29,6 +28,18 @@ namespace Kudoshi.Networking
         {
             if (NetworkManager.Singleton != null)
                 NetworkManager.Singleton.Shutdown();
+
+            NetworkLog.LogDev("[UnityLobbyService] Shutdown service");
+        }
+
+        public void Reset()
+        {
+            if (NetworkManager.Singleton != null)
+                NetworkManager.Singleton.Shutdown();
+
+            _transport.targetSteamId = 0;
+            _isInSession = false;
+            _joinCode = null;
             NetworkLog.LogDev("[SteamRelay] Shutdown");
         }
 
@@ -44,6 +55,7 @@ namespace Kudoshi.Networking
                     MultiplayerFacade.Instance.ServiceLobby.HostUpdateLobbyStatus(LobbyStatus.INGAME);
                 }
 
+                _isInSession = true;
                 return Task.FromResult(steamID);
 
             }
@@ -64,6 +76,7 @@ namespace Kudoshi.Networking
         {
             try
             {
+                _joinCode = joinCode;
                 ulong steamID = ulong.Parse(joinCode);
 
                 _transport.targetSteamId = steamID;
@@ -71,6 +84,7 @@ namespace Kudoshi.Networking
 
                 NetworkLog.LogDev("[SteamRelay] Joining relay steam ID: " + joinCode);
 
+                _isInSession = true;
                 return Task.FromResult(true);
             }
             catch (Exception e)
@@ -80,5 +94,32 @@ namespace Kudoshi.Networking
                 return Task.FromResult(false);
             }
         }
+
+        public Task<(bool success, bool shouldTryAgain)> ReconnectRelay()
+        {
+            try
+            {
+                if (!_isInSession)
+                    return Task.FromResult((false, false));
+
+                ulong steamID = ulong.Parse(_joinCode);
+
+                _transport.targetSteamId = steamID;
+                NetworkManager.Singleton.StartClient();
+
+                NetworkLog.LogDev("[SteamRelay] Rejoining relay steam ID: " + _joinCode);
+
+                _isInSession = true;
+
+                return Task.FromResult((true,false));
+            }
+            catch (Exception e)
+            {
+                NetworkLog.LogDev("[SteamRelay] Unable to rejoin relay: " + e.Message);
+
+                return Task.FromResult((false,true));
+            }
+        }
+
     }
 }

@@ -2,7 +2,7 @@
 using Unity.Netcode;
 using UnityEngine;
 
-namespace Kudoshi.Networking
+namespace Dreamonaut.Networking
 {
     [CreateAssetMenu(fileName = "SO_NetworkConfig", menuName = "Scriptable Objects/Networking/SO_NetworkConfig")]
     public class SO_NetworkConfig : ScriptableObject

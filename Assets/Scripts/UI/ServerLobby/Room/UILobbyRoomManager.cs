@@ -1,11 +1,11 @@
 
-using Kudoshi.Networking;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
-using UnityEngine.SceneManagement;
 using System.Collections;
+using Dreamonaut.Networking;
+using Dreamonaut.Networking.Sample;
 
 /// <summary>
 /// UI side that controls the lobby room

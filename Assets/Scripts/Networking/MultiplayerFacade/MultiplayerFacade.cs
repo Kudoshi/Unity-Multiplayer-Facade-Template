@@ -1,11 +1,8 @@
 
-using Kudoshi.Networking.Steam;
-using Kudoshi.Networking.Unity;
 using Kudoshi.Utilities;
-using System;
 using UnityEngine;
 
-namespace Kudoshi.Networking
+namespace Dreamonaut.Networking
 {
     /// <summary>
     /// Currently Multiplayer Facade does not do much other than assigning the service implementation and holds service references
@@ -26,18 +23,13 @@ namespace Kudoshi.Networking
         public SO_NetworkConfig NetworkConfig { get => _networkConfig; }
         public MultiplayerServiceType ServiceType { get => _serviceType; }
         public IServiceController ServiceController { get => _serviceController; }
-        public IServiceRelay ServiceRelay { get => _serviceRelay; }
-        public IServiceLobby ServiceLobby { get => _serviceLobby; }
+        public IServiceRelay ServiceRelay { get => _serviceRelay; set => _serviceRelay = value; }
+        public IServiceLobby ServiceLobby { get => _serviceLobby; set => _serviceLobby = value; }
+        public bool ServiceOn { get => _serviceOn; }
 
         private void Awake()
         {
-            if (MultiplayerFacade.Instance != this)
-            {
-                Destroy(gameObject);
-                return;
-            }
-
-            DontDestroyOnLoad(gameObject);
+            SetSingletonDontDestroyOnLoad(this);
         }
 
         private void Start()
@@ -49,8 +41,14 @@ namespace Kudoshi.Networking
         {
             if (_serviceOn)
             {
-                DisconnectService();
+                ShutdownService();
             }
+        }
+
+        public void ResetServices()
+        {
+            _serviceLobby.Reset();
+            _serviceRelay.Reset();
         }
 
 
@@ -69,16 +67,22 @@ namespace Kudoshi.Networking
             }
 
             // Initialize services
-            _serviceController.Init(out _serviceRelay, out _serviceLobby);
-
-            _serviceOn = true;
-
+            _serviceController.Init(FinishSetup);
         }
 
-        private void DisconnectService()
+        private void FinishSetup(IServiceRelay serviceRellay, IServiceLobby serviceLobby)
         {
-            // Initialize services
+            _serviceRelay = serviceRellay;
+            _serviceLobby = serviceLobby;
+
+            _serviceOn = true;
+        }
+
+        private void ShutdownService()
+        {
+            // InitListeners services
             _serviceController.Shutdown();
+
             _serviceOn = false;
 
         }

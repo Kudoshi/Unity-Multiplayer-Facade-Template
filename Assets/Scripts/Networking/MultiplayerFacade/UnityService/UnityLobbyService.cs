@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NUnit.Framework;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,7 +9,7 @@ using Unity.Services.Lobbies;
 using Unity.Services.Lobbies.Models;
 using UnityEngine;
 
-namespace Kudoshi.Networking.Unity
+namespace Dreamonaut.Networking
 {
 
     /// <summary>
@@ -33,8 +34,8 @@ namespace Kudoshi.Networking.Unity
         public event Action<CustomLobby, LobbyPlayer> OnPlayerDataChange;
         public event Action<CustomLobby, LobbyPlayer> OnLobbyPlayerJoin;
         public event Action<CustomLobby, LobbyPlayer> OnPlayerLeave;
-        public event Action<CustomLobby, LobbyPlayer> OnLobbyGetInvited;
-        public event Action<CustomLobby, LobbyPlayer> OnLobbyInviteFriend;
+        public event Action<CustomLobby, LobbyPlayer> OnLobbyGetInvited; //  Not used in unity service
+        public event Action<CustomLobby, LobbyPlayer> OnLobbyInviteFriend; //  Not used in unity service
         public event Action OnLobbyClosed;
 
         private ILobbyEvents _lobbyEvents;
@@ -42,12 +43,17 @@ namespace Kudoshi.Networking.Unity
 
         // Making it an array such that list values can be copied into the array. Rather than reference
         // Done this because of callbacks will tell indicies of player leaving but not have a copy of the player info in the lobby data
-        private Player[] _playersCache; 
+        private Player[] _playersCache;
         private string _hostID;  // Cache host ID because lobby can auto change owner when host leaves
 
-        /// When a lobby is joined, it will take a while before callbacks are hookedup
+        // When a lobby is joined, it will take a while before callbacks are hookedup
         private async void SubscribeToCallbacks()
         {
+            // TODO: To remove if event gets called in future already
+            _ = OnLobbyGetInvited;
+            _ = OnLobbyInviteFriend;
+            //-----
+
             _eventCallbacks = new LobbyEventCallbacks();
             _eventCallbacks.LobbyChanged += OnLobbyUpdateHandler;
             _eventCallbacks.PlayerDataChanged += OnPlayerDataChangeHandler;
@@ -77,6 +83,8 @@ namespace Kudoshi.Networking.Unity
         // Ensure all events are unsubscribed otherwise it will cause error
         private void UnsubscribeToCallbacks()
         {
+            if (_eventCallbacks == null) return;
+
             _eventCallbacks.LobbyChanged -= OnLobbyUpdateHandler;
             _eventCallbacks.PlayerDataChanged -= OnPlayerDataChangeHandler;
             _eventCallbacks.PlayerJoined -= OnLobbyPlayerJoinHandler;
@@ -95,10 +103,45 @@ namespace Kudoshi.Networking.Unity
 
         public void Shutdown()
         {
+            // In the case of force shutdown
             if (_currentLobby != null && _currentLobby.HostId == AuthenticationService.Instance.PlayerId)
             {
                 LobbyService.Instance.DeleteLobbyAsync(_currentLobby.Id);
             }
+            else if (_currentLobby != null)
+            {
+                LobbyService.Instance.RemovePlayerAsync(_currentLobby.Id, AuthenticationService.Instance.PlayerId);
+            }
+
+            NetworkLog.LogDev("[UnityLobbyService] Shutdown");
+        }
+
+        public void Reset()
+        {
+            UnsubscribeToCallbacks();
+            
+            if (_currentLobby != null && _currentLobby.HostId == AuthenticationService.Instance.PlayerId)
+            {
+                LobbyService.Instance.DeleteLobbyAsync(_currentLobby.Id);
+            }
+            else if (_currentLobby != null)
+            {
+                LobbyService.Instance.RemovePlayerAsync(_currentLobby.Id, AuthenticationService.Instance.PlayerId);
+            }
+
+            _currentLobby = null;
+            _isInLobby = false;
+            if (_heartBeatCoroutine != null)
+            {
+                MultiplayerFacade.Instance.StopCoroutine(_heartBeatCoroutine);
+                _heartBeatCoroutine = null;
+            }
+            _lobbyEvents = null;
+            _eventCallbacks = null;
+            _playersCache = null;
+            _hostID = null;
+
+            NetworkLog.LogDev("[UnityLobbyService] Reset service");
         }
 
         #endregion
@@ -163,10 +206,10 @@ namespace Kudoshi.Networking.Unity
         /// Event called when player data changes. The outer dictionary is indexed on player indices. 
         /// The inner dictionary is indexed on the changed data key.
         /// </summary>
-        /// <param name="playerChanges">Player Data Changes</param>
+        /// <param name="playerChanges">Character Data Changes</param>
         private void OnPlayerDataChangeHandler(Dictionary<int, Dictionary<string, ChangedOrRemovedLobbyValue<PlayerDataObject>>> playerChanges)
         {
-            NetworkLog.LogDev("[UnityLobby] Player Data Changed");
+            NetworkLog.LogDev("[UnityLobby] Character Data Changed");
 
             // Update lobby cache with latest player data update
             foreach (var playerChange in playerChanges)
@@ -244,7 +287,7 @@ namespace Kudoshi.Networking.Unity
 
         private void OnLobbyEventConnectionStateChangedHandler(LobbyEventConnectionState state)
         {
-            NetworkLog.LogDev("[UnityLobby] Lobby Event State Changed: " + state);
+            NetworkLog.LogDev("[UnityLobby] Lobby Event CurrentState Changed: " + state);
         }
         #endregion
 
@@ -262,8 +305,9 @@ namespace Kudoshi.Networking.Unity
                     { CustomLobby.KEY_LOBBY_NAME, new DataObject(DataObject.VisibilityOptions.Public, lobbyData.LobbyName, DataObject.IndexOptions.S1) },
                     { CustomLobby.KEY_GAME_NAME, new DataObject(DataObject.VisibilityOptions.Public, Application.productName, DataObject.IndexOptions.S2) },
                     { CustomLobby.KEY_CUSTOM_LOBBY_TYPE, new DataObject(DataObject.VisibilityOptions.Public, lobbyData.LobbyType.ToString(), DataObject.IndexOptions.S3) },
-                    { CustomLobby.KEY_LOBBY_STATUS, new DataObject(DataObject.VisibilityOptions.Public, LobbyStatus.ACTIVE.ToString(), DataObject.IndexOptions.S4) },
-                    { CustomLobby.KEY_MAX_PLAYER, new DataObject(DataObject.VisibilityOptions.Public, lobbyData.MaxPlayer.ToString()) }
+                    { CustomLobby.KEY_LOBBY_STATUS, new DataObject(DataObject.VisibilityOptions.Public, LobbyStatus.SETTING_UP.ToString(), DataObject.IndexOptions.S4) },
+                    { CustomLobby.KEY_PLAYER_INSTANCE_COUNT, new DataObject(DataObject.VisibilityOptions.Public, lobbyData.PlayerInstanceCount.ToString(), DataObject.IndexOptions.N1) },
+                    { CustomLobby.KEY_MAX_PLAYER, new DataObject(DataObject.VisibilityOptions.Public, lobbyData.MaxPlayer.ToString()) },
 
                 }
             };
@@ -284,6 +328,10 @@ namespace Kudoshi.Networking.Unity
                     {
                         {
                             CustomLobby.KEY_LOBBY_CODE, new DataObject(DataObject.VisibilityOptions.Public, _currentLobby.LobbyCode)
+                        },
+                        {
+                            CustomLobby.KEY_PLAYER_INSTANCE_COUNT, new DataObject(DataObject.VisibilityOptions.Public,  _currentLobby.Data[CustomLobby.KEY_PLAYER_INSTANCE_COUNT].Value)
+
                         }
                     }
                 };
@@ -307,7 +355,7 @@ namespace Kudoshi.Networking.Unity
         public async Task<LobbyEnterResult> JoinLobbyByID(string lobbyID)
         {
             JoinLobbyByIdOptions options = new JoinLobbyByIdOptions();
-            //Player player = new Player(AuthenticationService.Instance.PlayerId, null, SerializePlayerData(playerData));
+            //Character player = new Character(AuthenticationService.Instance.PlayerId, null, SerializePlayerData(playerData));
             Player player = new Player(AuthenticationService.Instance.PlayerId, null);
             options.Player = player;
 
@@ -339,7 +387,7 @@ namespace Kudoshi.Networking.Unity
         public async Task<LobbyEnterResult> JoinLobbyByLobbyCode(string lobbyCode)
         {
             JoinLobbyByCodeOptions options = new JoinLobbyByCodeOptions();
-            //Player player = new Player(AuthenticationService.Instance.PlayerId, null, SerializePlayerData(playerData));
+            //Character player = new Character(AuthenticationService.Instance.PlayerId, null, SerializePlayerData(playerData));
             Player player = new Player(AuthenticationService.Instance.PlayerId, null);
             options.Player = player;
 
@@ -424,21 +472,22 @@ namespace Kudoshi.Networking.Unity
                             op: QueryFilter.OpOptions.EQ,
                             value: "false"
                         ),
-                        new QueryFilter(
-                            field: QueryFilter.FieldOptions.S4,
-                            op: QueryFilter.OpOptions.EQ,
-                            value: LobbyStatus.ACTIVE.ToString()
-                        ),
+                        //new QueryFilter(
+                        //    field: QueryFilter.FieldOptions.S4,
+                        //    op: QueryFilter.OpOptions.EQ,
+                        //    value: LobbyStatus.ACTIVE.ToString()
+                        //),
                         new QueryFilter(
                             field: QueryFilter.FieldOptions.Name, // S1 corresponds to your first string data field
                             op: QueryFilter.OpOptions.CONTAINS, // Partial match allowed
                             value: name.ToUpper()
-                        )
+                        ),
                     },
                     Count = 20
                 };
 
                 QueryResponse response = await LobbyService.Instance.QueryLobbiesAsync(queryOptions);
+
 
                 return CustomLobby.ParseUnityLobbies(response.Results.ToArray());
             }
@@ -464,18 +513,15 @@ namespace Kudoshi.Networking.Unity
                             value: "false"
                         ),
 
-                        new QueryFilter(
-                            field: QueryFilter.FieldOptions.S4,
-                            op: QueryFilter.OpOptions.EQ,
-                            value: LobbyStatus.ACTIVE.ToString()
-                        )
                     },
 
                 };
 
                 QueryResponse response = await LobbyService.Instance.QueryLobbiesAsync(queryOptions);
 
-                return CustomLobby.ParseUnityLobbies(response.Results.ToArray());
+                var lobbies = response.Results.Where(l => l.Data[CustomLobby.KEY_LOBBY_STATUS].Value == LobbyStatus.ACTIVE.ToString()).ToArray();
+
+                return CustomLobby.ParseUnityLobbies(lobbies);
             }
             catch (LobbyServiceException e)
             {
@@ -508,16 +554,20 @@ namespace Kudoshi.Networking.Unity
 
         public async Task<bool> UpdateLobbyData(string lobbyID, Dictionary<string, string> data)
         {
-            Dictionary<string, DataObject> dataDict = new Dictionary<string, DataObject>();
+            Dictionary<string, DataObject> updateDict = new Dictionary<string, DataObject>();
 
             foreach (KeyValuePair<string,string> kvp in data)
             {
-                dataDict.Add(kvp.Key, new DataObject(DataObject.VisibilityOptions.Public, kvp.Value));
+                if (data.ContainsKey(kvp.Key))
+                {
+                    updateDict.Add(kvp.Key, new DataObject(DataObject.VisibilityOptions.Public, kvp.Value));
+                }
+
             }
 
             UpdateLobbyOptions updateOptions = new UpdateLobbyOptions
             {
-                Data = dataDict
+                Data = updateDict
             };
 
             try
@@ -600,27 +650,30 @@ namespace Kudoshi.Networking.Unity
 
         public Task TestFunction()
         {
-            Debug.Log("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
-            Debug.Log("Version: " + _currentLobby.Version);
+            PrintLobbyData();
 
-            foreach (var player in _currentLobby.Players)
-            {
-                Debug.Log("-----------------------");
-                Debug.Log("Player: " + player.Id);
+            //Debug.Log("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+            //Debug.Log("Version: " + _currentLobby.Version);
 
-                if (player.Data == null)
-                {
-                    Debug.Log("Data None");
-                    continue;
-                }
-                foreach(var data in player.Data)
-                {
-                    Debug.Log(data.Key + " | " + data.Value.Value);
-                }
-                Debug.Log("-----------------------");
-            }
+            //foreach (var player in _currentLobby.Players)
+            //{
+            //    Debug.Log("-----------------------");
+            //    Debug.Log("Character: " + player.Id);
+
+            //    if (player.Data == null)
+            //    {
+            //        Debug.Log("Data None");
+            //        continue;
+            //    }
+            //    foreach(var data in player.Data)
+            //    {
+            //        Debug.Log(data.Key + " | " + data.Value.Value);
+            //    }
+            //    Debug.Log("-----------------------");
+            //}
             return Task.CompletedTask;
         }
+
 
         public void PrintLobbyData()
         {
@@ -635,7 +688,7 @@ namespace Kudoshi.Networking.Unity
 
                 foreach (KeyValuePair<string, DataObject> data in _currentLobby.Data)
                 {
-                    NetworkLog.LogDev($"{data.Key} | {data.Value.Value}");
+                    NetworkLog.LogDev($"{data.Key} | {data.Value.Value} | {data.Value.Index}");
                 }
                 NetworkLog.LogDev("------------------------------------");
             }

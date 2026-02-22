@@ -9,7 +9,7 @@ namespace Kudoshi.Utilities
     /// To prevent that, add `protected T () {}` to your singleton class.
     /// 
     /// Changes:
-    /// - 27/10/2025 : Removed auto creation of singleton and destroy checking. To prevent null when 
+    /// - 27/10/2025 : Removed auto creation of singleton and destroy checking. To prevent null 
     /// </summary>
     /// 
     public class Singleton<T> : MonoBehaviour where T : MonoBehaviour
@@ -22,13 +22,6 @@ namespace Kudoshi.Utilities
         {
             get
             {
-                //if (applicationIsQuitting)
-                //{
-                //    Debug.LogWarning("[Singleton] Instance '" + typeof(T) +
-                //        "' already destroyed on application quit." +
-                //        " Won't create again - returning null.");
-                //    return null;
-                //}
 
                 lock (_lock)
                 {
@@ -56,72 +49,29 @@ namespace Kudoshi.Utilities
                             }
                         }
 
-                        //if (_instance == null)
-                        //{
-                        //    GameObject singleton = new GameObject();
-                        //    _instance = singleton.AddComponent<T>();
-                        //    singleton.name = "(singleton) " + typeof(T).ToString();
-
-                        //    Debug.Log("[Singleton] An instance of " + typeof(T) +
-                        //        " is needed in the scene, so '" + singleton +
-                        //        "' was created.");
-                        //}
-                        //else
-                        //{
-                        //    //Debug.Log("[Singleton] Using instance already created: " + _instance.gameObject.name);
-                        //}
+                        
                     }
 
                     return _instance;
                 }
             }
         }
+        protected static void SetSingletonDontDestroyOnLoad(T singleton)
+        {
+            if (singleton == null) return;
 
-        /// <summary>
-        /// Some magic fix due to a weird bug where ondisabled() scripts checks for null for instance but ends up creating a new instance
-        /// </summary>
-        //public static bool InstanceAlive()
-        //{
-        //    return _instance != null;
-        //}
-
-        //private static bool IsDontDestroyOnLoad()
-        //{
-        //    if (_instance == null)
-        //    {
-        //        return false;
-        //    }
-
-        //    // Object exists independent of Scene lifecycle, assume that means it has DontDestroyOnLoad set
-        //    // - Kudo: I dont think below actually fixed it. Have yet to test in original game to see
-        //    //if ((_instance.gameObject.hideFlags & HideFlags.DontSave) == HideFlags.DontSave)
-        //    //{
-        //    //    return true;
-        //    //}
-
-        //    if (_instance.gameObject.scene.name == "DontDestroyOnLoad")
-        //        return true;
-        //    else
-        //        return false;
-        //}
-
-        //private static bool applicationIsQuitting = false;
-        ///// <summary>
-        ///// When Unity quits, it destroys objects in a random order.
-        ///// In principle, a Singleton is only destroyed when application quits.
-        ///// If any script calls Instance after it have been destroyed, 
-        /////   it will create a buggy ghost object that will stay on the Editor scene
-        /////   even after stopping playing the Application. Really bad!
-        ///// So, this was made to be sure we're not creating that buggy ghost object.
-        ///// </summary>
-        //public void OnDestroy()
-        //{
-        //    if (IsDontDestroyOnLoad())
-        //    {
-        //        applicationIsQuitting = true;
-        //        _instance = null;
-        //    }
-        //}
+            // Compare with the singleton instance
+            if (_instance == null)
+            {
+                _instance = singleton;
+                Util.SetDontDestroyOnLoad(_instance.gameObject);
+            }
+            else if (singleton != _instance)
+            {
+                Debug.Log($"{singleton.GetType()} singleton instance already exist! Destroying the new one");
+                UnityEngine.Object.Destroy(singleton.gameObject);
+            }
+        }
     }
 }
 

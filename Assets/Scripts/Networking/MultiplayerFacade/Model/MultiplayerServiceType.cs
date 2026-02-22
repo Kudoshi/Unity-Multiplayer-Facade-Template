@@ -1,5 +1,5 @@
 
-namespace Kudoshi.Networking
+namespace Dreamonaut.Networking
 {
     public enum MultiplayerServiceType
     {

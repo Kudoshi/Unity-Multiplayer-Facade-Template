@@ -1,5 +1,5 @@
 
-using Kudoshi.Networking;
+using Dreamonaut.Networking;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -151,7 +151,7 @@ public class UILobbyManager : MonoBehaviour
 
     public async void HostLobby(CustomLobbyType lobbyType, string serverName)
     {
-        CustomLobbyConfig config = new CustomLobbyConfig(serverName, GameConstantVariables.MAX_PLAYERS, lobbyType);
+        CustomLobbyConfig config = new CustomLobbyConfig(serverName, GameConstantVariables.MAX_PLAYERS, 0, lobbyType);
 
         string lobbyCode = await MultiplayerFacade.Instance.ServiceLobby.HostLobby(config);
 

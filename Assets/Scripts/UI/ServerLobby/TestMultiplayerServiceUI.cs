@@ -1,13 +1,14 @@
-using Kudoshi.Networking;
+using Dreamonaut.Networking;
 using System;
 using TMPro;
 using Unity.Netcode;
+using Unity.Services.Qos.V2.Models;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace Kudoshi.UI
 {
-    public class TestMultiplayerServiceUI : MonoBehaviour
+    public class TestMultiplayerServiceUI : NetworkBehaviour
     {
         [Header("Relay")]
         [SerializeField] private TextMeshProUGUI _relayID;
@@ -70,9 +71,11 @@ namespace Kudoshi.UI
 
         public async void UI_HostLobby()
         {
-            CustomLobbyConfig lobbyData = new CustomLobbyConfig("FiresOut! Game", GameConstantVariables.MAX_PLAYERS, CustomLobbyType.Public);
+            CustomLobbyConfig lobbyData = new CustomLobbyConfig("FiresOut! Game", GameConstantVariables.MAX_PLAYERS, 0, CustomLobbyType.Public);
             string lobbyID = await MultiplayerFacade.Instance.ServiceLobby.HostLobby(lobbyData);
             _lobbyID.text = lobbyID;
+
+            await MultiplayerFacade.Instance.ServiceLobby.HostUpdateLobbyStatus(LobbyStatus.ACTIVE);
         }
 
         public void UI_JoinLobbyByID()
@@ -112,6 +115,25 @@ namespace Kudoshi.UI
             textEditor.text = _lobbyID.text;
             textEditor.SelectAll();
             textEditor.Copy();
+        }
+
+        ////////////////////////////////////////////////////////////////////////
+        ///  [ NetCode ]
+        [SerializeField] private NetworkObject cubePrefab;
+
+        public void UI_SpawnNewCube()
+        {
+            Server_SpawnCubeRpc(NetworkManager.Singleton.LocalClientId);
+
+        }
+
+        [Rpc(SendTo.Server)]
+        private void Server_SpawnCubeRpc(ulong clientID)
+        {
+            NetworkManager.Singleton.SpawnManager.InstantiateAndSpawn(cubePrefab, clientID);
+
+            //SessionManager.Instance.GetPlayerData(clientID, "");
+            //SessionManager.Instance.SetupNewPlayerInstance(clientID, "1234");
         }
     }
 }

@@ -1,38 +1,40 @@
 using Steamworks;
-using System.Collections;
-using System.Threading.Tasks;
-using Unity.Mathematics;
+using System;
 using UnityEngine;
 
-namespace Kudoshi.Networking.Steam
-{
+namespace Dreamonaut.Networking
+{ 
     public class SteamServiceController : IServiceController
     {
         public bool IsServiceRunning => SteamClient.IsValid;
 
         public string PlayerID => SteamClient.SteamId.Value.ToString();
 
-        public void Init(out IServiceRelay serviceRelay, out IServiceLobby serviceLobby)
+        public string PlayerName => SteamClient.Name;
+
+
+        public void Init(Action<IServiceRelay, IServiceLobby> completeInitAction)
         {
             InitializeSteam();
 
             // Instantiate service
-            serviceRelay = new SteamRelayService();
-            serviceLobby = new SteamLobbyService();
+            IServiceRelay serviceRelay = new SteamRelayService();
+            IServiceLobby serviceLobby = new SteamLobbyService();
 
 
-            // Initialize services
+            // InitListeners services
             serviceRelay.Init();
             serviceLobby.Init();
 
+            completeInitAction?.Invoke(serviceRelay, serviceLobby);
         }
 
         public void Shutdown()
         {
             MultiplayerFacade.Instance.ServiceRelay.Shutdown();
             MultiplayerFacade.Instance.ServiceLobby.Shutdown();
-
-            DisconnectService();
+            Steamworks.SteamClient.Shutdown();
+            NetworkLog.LogNormal("[SteamInit] Shutdown steam service");
         }
 
         public void InitializeSteam()
@@ -48,19 +50,13 @@ namespace Kudoshi.Networking.Steam
                 var playername = SteamClient.Name;
                 var playersteamid = SteamClient.SteamId;
 
-                NetworkLog.LogNormal($"[SteamInit] Player: {playername} | SteamID: {playersteamid}");
+                NetworkLog.LogNormal($"[SteamInit] Character: {playername} | SteamID: {playersteamid}");
             }
             catch (System.Exception e)
             {
                 NetworkLog.LogError("[SteamInit] Unable to initialize steam");
                 Debug.LogException(e);
             }
-        }
-
-        public void DisconnectService()
-        {
-            Steamworks.SteamClient.Shutdown();
-            NetworkLog.LogNormal("[SteamInit] Shutdown steam service");
         }
 
     }

@@ -1,11 +1,14 @@
 
 using System;
+using System.Collections;
 using System.Linq;
+using System.Threading.Tasks;
 using Unity.Multiplayer.Playmode;
 using Unity.Services.Authentication;
 using Unity.Services.Core;
+using UnityEngine;
 
-namespace Kudoshi.Networking.Unity
+namespace Dreamonaut.Networking
 {
     public class UnityServiceController : IServiceController
     {
@@ -13,32 +16,37 @@ namespace Kudoshi.Networking.Unity
 
         public string PlayerID => AuthenticationService.Instance.PlayerId;
 
-        public void Init(out IServiceRelay serviceRelay, out IServiceLobby serviceLobby)
+        public string PlayerName => _playerName;
+
+        private string _playerName;
+
+        public void Init(Action<IServiceRelay, IServiceLobby> completeInitAction)
         {
-            InitializeService();
-
-            // Instantiate service
-            serviceRelay = new UnityRelayService();
-            serviceLobby = new UnityLobbyService();
-
-            // Initialize services
-            serviceRelay.Init();
-            serviceLobby.Init();
+            SetupServices(completeInitAction);
         }
+
 
         public void Shutdown()
         {
             MultiplayerFacade.Instance.ServiceRelay.Shutdown();
             MultiplayerFacade.Instance.ServiceLobby.Shutdown();
-
-            DisconnectService();
         }
-        private void InitializeService()
+
+        private async void SetupServices(Action<IServiceRelay, IServiceLobby> completeInitAction)
         {
-            Authenticate();
-        }
+            await Authenticate();
 
-        private async void Authenticate()
+            // Instantiate service
+            IServiceRelay serviceRelay = new UnityRelayService();
+            IServiceLobby serviceLobby = new UnityLobbyService();
+
+            // Initialize services
+            serviceRelay.Init();
+            serviceLobby.Init();
+
+            completeInitAction?.Invoke(serviceRelay, serviceLobby);
+        }
+        private async Task Authenticate()
         {
             InitializationOptions options = new InitializationOptions();
 
@@ -75,18 +83,39 @@ namespace Kudoshi.Networking.Unity
 
                 await AuthenticationService.Instance.SignInAnonymouslyAsync();
 
+                // Using this as temporary name
+                _playerName = GetRandomName();
+
                 NetworkLog.LogNormal("[UnitySController] Unity Service initialized");
             }
         }
 
         private void OnSignedIn()
         {
-            NetworkLog.LogNormal("[UnitySController] Player ID: " + AuthenticationService.Instance.PlayerId);
+            NetworkLog.LogNormal("[UnitySController] Character ID: " + AuthenticationService.Instance.PlayerId);
             NetworkLog.LogNormal("[UnitySController] Access Token: " + AuthenticationService.Instance.AccessToken);
         }
 
-        private void DisconnectService()
+        #region Unity username generation
+
+        private static readonly string[] randomNames = new string[]
+{
+            // OG cool names
+            "Blaze", "Echo", "Shadow", "Pixel", "Nova", "Bolt", "Fizz", "Luna", "Vortex", "Jinx",
+    
+            // Meme / funny names
+            "BigChungus", "ShrekOnFleek", "Pepega", "YeetMaster", "UgandanKnuckles", "Doggo",
+            "Cheems", "SussyBaka", "Karen", "ThiccBois", "NoobSlayer69", "PogChamp", "RickRoller",
+            "BoomerBoi", "UwU", "OofMaster", "BruhMoment", "Froge", "DankMemer", "LOLer"
+        };
+
+        private string GetRandomName()
         {
+            int index = UnityEngine.Random.Range(0, randomNames.Length);
+            int suffix = UnityEngine.Random.Range(1, 1000); // random number 1�999
+            return $"{randomNames[index]}{suffix}";
         }
+
+        #endregion
     }
 }

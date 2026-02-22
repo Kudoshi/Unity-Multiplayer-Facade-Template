@@ -1,12 +1,12 @@
 using Unity.Netcode;
 using UnityEngine;
 
-namespace Kudoshi.Networking
+namespace Dreamonaut.Networking
 {
     /// <summary>
     /// Allows you to turn off debugging log for network related stuff when not dealing with network stuff
     /// </summary>
-    public class NetworkLog
+    public static class NetworkLog
     {
 
         // Logs ALL network debug log
