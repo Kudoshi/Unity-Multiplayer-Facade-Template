@@ -1,6 +1,7 @@
-# Unity Multiplayer Lobby System Template
+# Unity Multiplayer Facade Template
 
-A simple multiplayer lobby system that accomodates multiple different backend multiplayer services to be used and swapped.
+A simple template for Multiplayer Facade. A system that allows switching of multiplayer services with one click of a button. 
+Also includes a simple lobby listing and room hosting for testing
 
 Currently support Unity Multiplayer Services and Steamworks via Facepunch. The service can easily be swapped by a dropdown in the MultiplayerFacade gameobject.
 
@@ -56,5 +57,6 @@ Check out these scripts/objects for configs:
 <img width="1912" height="927" alt="image" src="https://github.com/user-attachments/assets/e4bd3e33-d70b-4e90-8420-0c86f523664b" />
 
 # Known issues
-1. Doesn't handle forced disconnect (game crash) properly. Player will still be shown in lobby 
+1. Doesn't handle forced disconnect (game crash) properly. Player will still be shown in lobby
+2. Client will have error of "[LobbyRoomManager] Unable to ready up" and gets booted back to lobby listing as normal
 
